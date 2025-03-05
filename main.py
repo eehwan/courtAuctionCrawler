@@ -131,26 +131,32 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="법원 경매 정보 요청 스크립트"
+        description="법원 경매 정보 요청 스크립트",
     )
+    # 선택적 positional argument: 법원명 (기본값: 서울중앙지방법원)
     parser.add_argument(
         "court",
         nargs="?",
         default="서울중앙지방법원",
         choices=COURT_CODES.keys(),
+        metavar="court",
         help="법원명 (예: 서울중앙지방법원)",
     )
+    # 선택적 positional argument: 사건번호 (기본값: 2022타경3944)
     parser.add_argument(
         "csNo",
         nargs="?",
         default="2022타경3944",
+        metavar="csNo",
         help="사건번호 (예: 2022타경3944)",
     )
+    # 옵션 인자: 가져올 정보 탭, -t 또는 --tab 사용 가능 (기본값: 기일내역)
     parser.add_argument(
-        "-t", "--tab",
+        "-t",
+        "--tab",
         default="기일내역",
         choices=["사건내역", "기일내역", "문건/송달내역"],
-        help="가져올 정보 탭 (기본값: 기일내역)"
+        help="가져올 정보 탭 (기본값: 기일내역)",
     )
     args = parser.parse_args()
     result = main(args.court, args.csNo, args.tab)
