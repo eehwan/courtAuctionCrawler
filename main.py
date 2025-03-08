@@ -1,7 +1,15 @@
-#!/usr/bin/env python3
+"""
+법원 경매 정보 요청 스크립트
+
+이 스크립트는 지정된 법원 및 사건번호에 대해 웹 요청을 통해 경매 정보를 가져옵니다.
+명령행 인자로 법원명, 사건번호(형식: "2022타경3944"), 그리고 가져올 정보 탭을 전달할 수 있으며,
+기본값은 각각 "서울중앙지방법원", "2022타경3944", "기일내역"입니다.
+"""
+
 import json
 import requests
 
+# 법원명과 해당 법원 코드를 매핑하는 딕셔너리
 COURT_CODES = {
     "서울중앙지방법원": "B000210",
     "서울동부지방법원": "B000211",
@@ -62,25 +70,38 @@ COURT_CODES = {
     "군산지원": "B000521",
     "정읍지원": "B000522",
     "남원지원": "B000523",
-    "제주지방법원": "B000530"
+    "제주지방법원": "B000530",
 }
+
+# 탭에 따른 요청 URL 매핑
 URL_LIST = {
-    "사건내역" : "https://www.courtauction.go.kr/pgj/pgj15A/selectAuctnCsSrchRslt.on",
-    "기일내역" : "https://www.courtauction.go.kr/pgj/pgj15A/selectCsDtlDxdyDts.on",
-    "문건/송달내역" : "https://www.courtauction.go.kr/pgj/pgj15A/selectDlvrOfdocDtsDtl.on",
+    "사건내역": "https://www.courtauction.go.kr/pgj/pgj15A/selectAuctnCsSrchRslt.on",
+    "기일내역": "https://www.courtauction.go.kr/pgj/pgj15A/selectCsDtlDxdyDts.on",
+    "문건/송달내역": "https://www.courtauction.go.kr/pgj/pgj15A/selectDlvrOfdocDtsDtl.on",
 }
+
+# 탭에 따른 페이로드 키 매핑
 PAYLOAD_LIST = {
-    "사건내역" : "dma_srchCsDtlInf",
-    "기일내역" : "dma_srchDxdyDtsLst",
-    "문건/송달내역" : "dma_srchDlvrOfdocDts",
+    "사건내역": "dma_srchCsDtlInf",
+    "기일내역": "dma_srchDxdyDtsLst",
+    "문건/송달내역": "dma_srchDlvrOfdocDts",
 }
 
 
-def main(court, csNo, tab):
-    csNo1, csNo2 = csNo.split("타경")
-    csNo2 = csNo2.zfill(6)
+def main(court, cs_no, tab):
+    """
+    법원 경매 정보를 요청하는 메인 함수
 
-    # 브라우저처럼 보이기 위한 헤더 설정
+    :param court: 법원명 (예: '서울중앙지방법원')
+    :param cs_no: 사건번호 (형식: '2022타경3944')
+    :param tab: 가져올 정보 탭 (예: '기일내역')
+    :return: 요청 결과 데이터 (dict), 오류 발생 시 None 반환
+    """
+    # 사건번호를 앞자리와 뒷자리로 분리
+    cs_no1, cs_no2 = cs_no.split("타경")
+    cs_no2 = cs_no2.zfill(6)
+
+    # 브라우저처럼 보이도록 HTTP 헤더 설정
     headers = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -95,29 +116,34 @@ def main(court, csNo, tab):
         "Connection": "keep-alive",
     }
 
-    # 세션 생성 (쿠키 자동 관리)
+    # 초기 페이지 요청으로 쿠키 획득
     initial_url = "https://www.courtauction.go.kr/pgj/index.on"
     session = requests.Session()
     response = session.get(initial_url, headers=headers)
+    # 디버그용: 초기 GET 요청 상태를 출력 (필요 시 주석 해제)
     # print(f"Initial GET status: {response.status_code}".center(50, "-"))
 
+    # Referer 헤더 추가 (보안 정책 우회를 위해 필요)
     headers.update({"Referer": initial_url})
-    # 1. 초기 페이지 방문 - 쿠키 획득
 
-    # 2. POST 요청 시
+    # POST 요청 URL과 페이로드 구성
     post_url = URL_LIST[tab]
     payload = {
         PAYLOAD_LIST[tab]: {
             "cortOfcCd": COURT_CODES[court],
-            "csNo": f"{csNo1}0130{csNo2}",
+            "csNo": f"{cs_no1}0130{cs_no2}",
         },
     }
-    if (tab == "문건/송달내역"):
-        payload[PAYLOAD_LIST[tab]].update({"srchFlag":"F"})
-    # print(post_url, payload)
+    # "문건/송달내역" 탭인 경우 추가 파라미터 설정
+    if tab == "문건/송달내역":
+        payload[PAYLOAD_LIST[tab]].update({"srchFlag": "F"})
 
+    # POST 요청 전송
     response = session.post(post_url, json=payload, headers=headers)
+    # 디버그용: POST 응답 상태 출력 (필요 시 주석 해제)
     # print("POST response:".center(50, "-"))
+
+    # 응답 JSON 파싱 및 데이터 반환
     try:
         data = response.json().get("data")
         return data
